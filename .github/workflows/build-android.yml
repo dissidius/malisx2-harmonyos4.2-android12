@@ -29,6 +29,8 @@ jobs:
 
       - name: Set up Android SDK and NDK r28c
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
 
       - name: Install Android NDK
         run: |
@@ -53,8 +55,8 @@ jobs:
         run: |
           printf '[constants]\nndk = %s\n' "'$ANDROID_NDK_HOME'" > ndk-ci.ini
           meson setup build-android \
-            --cross-file ndk-ci.ini \
             --cross-file cross/android-aarch64.ini \
+            --cross-file ndk-ci.ini \
             --buildtype=release
 
       - name: Compile Vulkan driver
