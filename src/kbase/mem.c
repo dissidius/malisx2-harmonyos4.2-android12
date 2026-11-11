@@ -441,7 +441,7 @@ mali_kbase_import_dmabuf(struct mali_kbase *kb, int fd, uint64_t flags,
       legacy.in.phandle = (uint64_t)(uintptr_t)&handle;
       legacy.in.type = KB_MEM_IMPORT_TYPE_UMM;
       legacy.in.padding = padding_pages;
-      ret = kb_ioctl(kb, _IOWR(KB_IOCTL_TYPE, 22, typeof(legacy)), &legacy);
+      ret = kb_ioctl(kb, _IOWR(KB_IOCTL_TYPE, 22, __typeof__(legacy)), &legacy);
       if (ret >= 0) {
          im.out.flags = legacy.out.flags;
          im.out.gpu_va = legacy.out.gpu_va;
