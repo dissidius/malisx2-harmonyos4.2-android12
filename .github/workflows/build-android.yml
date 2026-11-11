@@ -70,10 +70,13 @@ jobs:
         run: |
           cat > driver-pack/meta.json <<'EOF'
           {
+            "schemaVersion": 1,
             "name": "MaliSX2 Huawei Kirin 990 (experimental)",
             "description": "HarmonyOS 4.2 / Android 12 legacy 32-byte kbase MEM_IMPORT retry",
-            "author": "dissidius / bmdhacks",
-            "version": "0.4.1-huawei-test1",
+            "author": "dissidius (based on bmdhacks/malisx2)",
+            "packageVersion": 1,
+            "vendor": "Mesa / MaliSX2",
+            "driverVersion": "0.4.1-huawei-test1",
             "minApi": 29,
             "libraryName": "libvulkan_malisx2.so"
           }
