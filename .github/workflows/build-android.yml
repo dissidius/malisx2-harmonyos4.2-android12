@@ -1,0 +1,90 @@
+name: Build MaliSX2 HarmonyOS 4.2 (arm64)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'mesa-glue/**'
+      - 'cross/**'
+      - 'meson.build'
+      - 'meson.options'
+      - '.github/workflows/build-android.yml'
+
+jobs:
+  android-arm64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build clang libclang-dev pkg-config cmake zip python3-venv python3-dev
+          python3 -m venv "$HOME/mesa-build-venv"
+          "$HOME/mesa-build-venv/bin/pip" install 'meson>=1.7,<2' mako PyYAML packaging ply
+          echo "$HOME/mesa-build-venv/bin" >> "$GITHUB_PATH"
+
+      - name: Set up Android SDK and NDK r28c
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        run: |
+          sdkmanager --install "ndk;28.2.13676358"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/28.2.13676358" >> "$GITHUB_ENV"
+
+      - name: Install Rust Android target and bindgen
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add aarch64-linux-android
+          cargo install bindgen-cli --version 0.71.1 --locked
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Fetch exact Mesa source revision
+        run: |
+          git init mesa
+          git -C mesa fetch --depth 1 https://github.com/bmdhacks/armsx2-turnip.git 45ff8fac44d9132118d0dddd2ff49f5d827533fb
+          git -C mesa checkout FETCH_HEAD
+
+      - name: Configure Android arm64
+        run: |
+          printf '[constants]\nndk = %s\n' "'$ANDROID_NDK_HOME'" > ndk-ci.ini
+          meson setup build-android \
+            --cross-file ndk-ci.ini \
+            --cross-file cross/android-aarch64.ini \
+            --buildtype=release
+
+      - name: Compile Vulkan driver
+        run: |
+          ninja -C build-android -j 2
+          mkdir -p driver-pack
+          "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" \
+            -o driver-pack/libvulkan_malisx2.so build-android/src/libvulkan_malisx2.so
+
+      - name: Package adrenotools driver
+        run: |
+          cat > driver-pack/meta.json <<'EOF'
+          {
+            "name": "MaliSX2 Huawei Kirin 990 (experimental)",
+            "description": "HarmonyOS 4.2 / Android 12 legacy 32-byte kbase MEM_IMPORT retry",
+            "author": "dissidius / bmdhacks",
+            "version": "0.4.1-huawei-test1",
+            "minApi": 29,
+            "libraryName": "libvulkan_malisx2.so"
+          }
+          EOF
+          cd driver-pack
+          zip -9 ../malisx2-huawei-kirin990-test1.zip libvulkan_malisx2.so meta.json
+          cd ..
+          sha256sum malisx2-huawei-kirin990-test1.zip > malisx2-huawei-kirin990-test1.zip.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: malisx2-huawei-kirin990-test1
+          path: |
+            malisx2-huawei-kirin990-test1.zip
+            malisx2-huawei-kirin990-test1.zip.sha256
+          if-no-files-found: error
